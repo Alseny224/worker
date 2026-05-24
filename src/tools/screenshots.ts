@@ -4,17 +4,16 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-)
-
 export interface ScreenshotResult {
   url: string
   image_path: string
 }
 
 export async function captureScreenshots(urls: string[], scanId: string, limit = 50): Promise<ScreenshotResult[]> {
+  const supabase = createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!
+  )
   const targets = urls.slice(0, limit)
   if (!targets.length) return []
 

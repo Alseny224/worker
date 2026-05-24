@@ -20,7 +20,8 @@ export async function captureScreenshots(urls: string[], scanId: string, limit =
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'reconx-'))
   const results: ScreenshotResult[] = []
 
-  const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] })
+  const executablePath = process.env.CHROMIUM_PATH || undefined
+  const browser = await chromium.launch({ executablePath, args: ['--no-sandbox', '--disable-setuid-sandbox'] })
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, ignoreHTTPSErrors: true })
 
   for (const url of targets) {

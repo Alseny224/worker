@@ -1,4 +1,3 @@
-import 'dotenv/config'
 import { createClient } from '@supabase/supabase-js'
 import { runReconJob } from './jobs/recon.ts'
 
@@ -26,7 +25,6 @@ async function poll() {
   if (!scans || scans.length === 0) return
 
   for (const scan of scans) {
-    // Claim the scan atomically — only process if still queued
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: claimed } = await (supabase as any)
       .from('scans')
@@ -57,7 +55,6 @@ process.on('SIGTERM', async () => {
   console.log('[worker] Shutting down gracefully...')
   shutdown = true
   clearInterval(interval)
-  // Wait up to 30s for running jobs
   let waited = 0
   while (running > 0 && waited < 30000) {
     await new Promise(r => setTimeout(r, 500))

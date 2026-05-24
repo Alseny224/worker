@@ -4,13 +4,12 @@ import { runHttpx } from '../tools/httpx.ts'
 import { runNaabu } from '../tools/naabu.ts'
 import { captureScreenshots } from '../tools/screenshots.ts'
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-)
+function getSupabase() {
+  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+}
 
 async function updateScan(scanId: string, data: Record<string, unknown>) {
-  await supabase.from('scans').update(data).eq('id', scanId)
+  await getSupabase().from('scans').update(data).eq('id', scanId)
 }
 
 function computeScore(subdomainCount: number, aliveCount: number, portCount: number): number {
@@ -79,14 +78,15 @@ export async function runReconJob(scanId: string, target: string, userId: string
       image_path: s.image_path,
     }))
 
+    const db = getSupabase()
     if (subdomainRows.length > 0) {
-      await supabase.from('subdomains').insert(subdomainRows)
+      await db.from('subdomains').insert(subdomainRows)
     }
     if (portRows.length > 0) {
-      await supabase.from('ports').insert(portRows)
+      await db.from('ports').insert(portRows)
     }
     if (screenshotRows.length > 0) {
-      await supabase.from('screenshots').insert(screenshotRows)
+      await db.from('screenshots').insert(screenshotRows)
     }
 
     await updateScan(scanId, {

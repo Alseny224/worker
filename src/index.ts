@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { runReconJob } from './jobs/recon.ts'
+import { runOsintJob } from './jobs/osint.ts'
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -17,7 +18,7 @@ async function poll() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: scans } = await (supabase as any)
     .from('scans')
-    .select('id, target, user_id')
+    .select('id, target, user_id, scan_type')
     .eq('status', 'queued')
     .order('created_at', { ascending: true })
     .limit(slots)
@@ -37,9 +38,14 @@ async function poll() {
     if (!claimed) continue
 
     running++
-    console.log(`[worker] Starting scan ${scan.id} for target ${scan.target}`)
+    const mode = scan.scan_type ?? 'active'
+    console.log(`[worker] Starting ${mode} scan ${scan.id} for ${scan.target}`)
 
-    runReconJob(scan.id, scan.target, scan.user_id)
+    const job = mode === 'osint'
+      ? runOsintJob(scan.id, scan.target)
+      : runReconJob(scan.id, scan.target, scan.user_id)
+
+    job
       .then(() => console.log(`[worker] Scan ${scan.id} completed`))
       .catch((err: Error) => console.error(`[worker] Scan ${scan.id} failed:`, err.message))
       .finally(() => { running-- })

@@ -23,32 +23,41 @@ function computeScore(subdomainCount: number, aliveCount: number, portCount: num
 export async function runReconJob(scanId: string, target: string, userId: string) {
   console.log(`[recon] Starting scan ${scanId} for ${target}`)
 
-  await updateScan(scanId, { status: 'running' })
+  await updateScan(scanId, { status: 'running', step: 'Démarrage...' })
 
   try {
     // Step 1: Subdomain enumeration
     console.log(`[recon] Step 1: subfinder → ${target}`)
+    await updateScan(scanId, { step: 'Énumération des subdomains (subfinder)...' })
     const subfinderResults = await runSubfinder(target)
     const subdomains = [...new Set([target, ...subfinderResults.map(r => r.subdomain)])]
     console.log(`[recon] Found ${subdomains.length} subdomains`)
 
     // Step 2: HTTP probing
     console.log(`[recon] Step 2: httpx → ${subdomains.length} hosts`)
+    await updateScan(scanId, { step: `Sondage HTTP sur ${subdomains.length} hôtes (httpx)...` })
     const httpxResults = await runHttpx(subdomains)
     const aliveHosts = httpxResults.filter(r => r.alive)
     console.log(`[recon] ${aliveHosts.length} alive hosts`)
 
     // Step 3: Port scanning
     console.log(`[recon] Step 3: naabu → ${aliveHosts.length} hosts`)
+    await updateScan(scanId, { step: `Scan de ports sur ${aliveHosts.length} hôtes actifs (naabu)...` })
     const uniqueHosts = [...new Set(aliveHosts.map(h => h.host))]
     const portResults = await runNaabu(uniqueHosts)
     console.log(`[recon] Found ${portResults.length} open ports`)
 
-    // Step 4: Screenshots
+    // Step 4: Screenshots (optional — skip if Playwright unavailable)
     console.log(`[recon] Step 4: screenshots → ${aliveHosts.length} URLs`)
+    await updateScan(scanId, { step: `Capture de screenshots (${Math.min(aliveHosts.length, 50)} URLs)...` })
     const aliveUrls = aliveHosts.map(h => h.url)
-    const screenshotResults = await captureScreenshots(aliveUrls, scanId)
-    console.log(`[recon] ${screenshotResults.length} screenshots captured`)
+    let screenshotResults: import('../tools/screenshots.ts').ScreenshotResult[] = []
+    try {
+      screenshotResults = await captureScreenshots(aliveUrls, scanId)
+      console.log(`[recon] ${screenshotResults.length} screenshots captured`)
+    } catch (err) {
+      console.warn(`[recon] Screenshots skipped:`, (err as Error).message.split('\n')[0])
+    }
 
     // Step 5: Persist to DB
     const score = computeScore(subdomains.length, aliveHosts.length, portResults.length)
